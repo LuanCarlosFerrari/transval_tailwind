@@ -57,7 +57,7 @@ function initContact() {
         } else {
             formContainerEl.innerHTML = '';
             formContainerEl.classList.add('hidden');
-        }        buttonEl.textContent = isHidden ? contactContent.buttonTextClose : contactContent.buttonTextOpen;
+        } buttonEl.textContent = isHidden ? contactContent.buttonTextClose : contactContent.buttonTextOpen;
     });
 }
 

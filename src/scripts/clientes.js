@@ -77,7 +77,7 @@ function generateClientCards() {
 
     clientLogos.forEach(logo => {
         marqueeContent.appendChild(createCard(logo));
-    });    clientLogos.forEach(logo => {
+    }); clientLogos.forEach(logo => {
         marqueeContent.appendChild(createCard(logo));
     });
 }

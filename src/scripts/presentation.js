@@ -341,7 +341,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         handleCarouselLayout();
-        window.addEventListener('resize', handleCarouselLayout);    }
+        window.addEventListener('resize', handleCarouselLayout);
+    }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', setupEventListeners);
     } else {
