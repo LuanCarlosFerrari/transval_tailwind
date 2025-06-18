@@ -15,20 +15,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!folderModal) {
         console.error('Element with ID "folder-modal" not found');
         return;
-    }
-
-    // Aguardar inicialização do Supabase
+    }    // Variáveis de controle
     let storageManager = null;
     let isOnlineMode = false;
+    let isInitialized = false;
+    let isLoading = false;
+    let initAttempts = 0;
+    const maxInitAttempts = 3;
+    let isAppFullyLoaded = false; // Nova variável para controlar se o app já foi carregado completamente
 
-    // Tentar conectar com Supabase Storage
+    // Tentar conectar com Supabase Storage (com timeout)
     try {
         if (window.SupabaseAuth && window.SupabaseAuth.getStorageManager) {
-            await new Promise(resolve => {
+            await new Promise((resolve, reject) => {
+                let attempts = 0;
+                const maxAttempts = 50; // máximo 5 segundos (50 * 100ms)
+                
                 const checkSupabase = () => {
+                    attempts++;
                     if (window.SupabaseAuth.getStorageManager()) {
                         storageManager = window.SupabaseAuth.getStorageManager();
                         isOnlineMode = true;
+                        resolve();
+                    } else if (attempts >= maxAttempts) {
+                        console.log('Timeout na inicialização do Supabase, usando modo offline');
                         resolve();
                     } else {
                         setTimeout(checkSupabase, 100);
@@ -67,35 +77,53 @@ document.addEventListener('DOMContentLoaded', async () => {
             { name: 'contratos.pdf', type: 'file' },
             { name: 'licencas.docx', type: 'file' },
         ]
-    };
-
-    // Carregar dados dos arquivos dinamicamente
+    };    // Carregar dados dos arquivos dinamicamente
     async function loadFileData() {
         if (isOnlineMode && storageManager) {
             console.log('📁 Carregando arquivos do Supabase Storage dinamicamente...');
+            
+            // Inicializar buckets apenas uma vez, ou se explicitamente solicitado
+            if (!isInitialized && initAttempts < maxInitAttempts) {
+                initAttempts++;
+                console.log(`🔧 Inicializando descoberta de buckets (tentativa ${initAttempts}/${maxInitAttempts})...`);
+                await storageManager.initializeBuckets();
+                
+                // Verificar se encontrou buckets
+                const discoveredBuckets = storageManager.getDiscoveredBuckets();
+                if (Object.keys(discoveredBuckets).length > 0) {
+                    isInitialized = true;
+                } else if (initAttempts >= maxInitAttempts) {
+                    console.log('⚠️ Máximo de tentativas atingido, parando inicializações');
+                    isInitialized = true; // Para evitar mais tentativas
+                }
+            }
+            
             const onlineData = {};
             
-            // Obter buckets descobertos dinamicamente
+            // Obter buckets descobertos dinamicamente (apenas os que existem no Supabase)
             const discoveredBuckets = storageManager.getDiscoveredBuckets();
+            
+            console.log('🔍 Buckets descobertos:', Object.keys(discoveredBuckets));
+            
+            // Se não encontrou nenhum bucket que realmente existe, retornar vazio
+            if (Object.keys(discoveredBuckets).length === 0) {
+                console.log('⚠️ Nenhum bucket válido encontrado no Supabase Storage');
+                return {};
+            }
             
             for (const folderName of Object.keys(discoveredBuckets)) {
                 try {
                     const files = await storageManager.listFiles(folderName);
                     const displayName = storageManager.getDisplayName(folderName);
                     onlineData[displayName] = files;
+                    console.log(`✅ Pasta "${displayName}" carregada com ${files.length} arquivo(s)`);
                 } catch (error) {
-                    console.error(`Erro ao carregar pasta ${folderName}:`, error);
-                    onlineData[storageManager.getDisplayName(folderName)] = [];
+                    console.error(`❌ Erro ao carregar pasta ${folderName}:`, error);
+                    // Não adicionar pasta que deu erro
                 }
             }
             
-            // Se não encontrou nenhum bucket, usar fallback
-            if (Object.keys(onlineData).length === 0) {
-                console.log('📄 Nenhum bucket encontrado, usando dados fallback');
-                return fallbackFileData;
-            }
-            
-            console.log('✅ Dados carregados dinamicamente:', Object.keys(onlineData));
+            console.log('✅ Sistema carregado com buckets existentes:', Object.keys(onlineData));
             return onlineData;
         } else {
             console.log('📄 Usando dados locais (modo offline)');
@@ -129,8 +157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Obter ícone apropriado para cada tipo de pasta
-    function getFolderIcon(folderName) {
-        const iconMap = {
+    function getFolderIcon(folderName) {        const iconMap = {
             'diretoria': 'fas fa-users-cog text-purple-500',
             'financeiro': 'fas fa-chart-line text-green-500',
             'marketing': 'fas fa-bullhorn text-orange-500',
@@ -145,6 +172,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             'tecnologia da informação': 'fas fa-laptop-code text-cyan-500',
             'qualidade': 'fas fa-certificate text-emerald-500',
             'logistica': 'fas fa-truck text-red-500',
+            'teste': 'fas fa-flask text-lime-500',
+            'teste 2': 'fas fa-vial text-teal-500',
             'default': 'fas fa-folder text-blue-500'
         };
         
@@ -331,16 +360,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             uploadResults.filter(r => !r.success).forEach(r => {
                 message += `• ${r.file}: ${r.error}\n`;
             });
-        }
+        }        alert(message);
         
-        alert(message);
-        
-        // Recarregar a lista de arquivos
+        // Recarregar a lista de arquivos apenas se houve uploads bem-sucedidos
         if (successCount > 0) {
             closeModal();
-            setTimeout(() => {
-                loadAndRenderFiles();
-            }, 500);
+            // Aguardar um pouco antes de recarregar para evitar conflitos
+            setTimeout(async () => {
+                console.log('🔄 Atualizando interface após upload bem-sucedido...');
+                if (isAppFullyLoaded) {
+                    // Se o app já está carregado, apenas recarregar o conteúdo específico
+                    await refreshBrowserContent();
+                } else {
+                    // Se ainda não está carregado, fazer carregamento completo
+                    await loadAndRenderFiles();
+                }
+            }, 800);
         }
     }
 
@@ -365,14 +400,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (isOnlineMode && storageManager) {
             console.log(`Deletando ${file.name} do Supabase...`);
-            const result = await storageManager.deleteFile(folderName, file.name);
-            
-            if (result.success) {
+            const result = await storageManager.deleteFile(folderName, file.name);            if (result.success) {
                 alert(`Arquivo "${file.name}" deletado com sucesso!`);
                 closeModal();
-                setTimeout(() => {
-                    loadAndRenderFiles();
-                }, 500);
+                // Aguardar um pouco antes de recarregar para evitar conflitos
+                setTimeout(async () => {
+                    console.log('🔄 Atualizando interface após exclusão bem-sucedida...');
+                    if (isAppFullyLoaded) {
+                        // Se o app já está carregado, apenas recarregar o conteúdo específico
+                        await refreshBrowserContent();
+                    } else {
+                        // Se ainda não está carregado, fazer carregamento completo
+                        await loadAndRenderFiles();
+                    }
+                }, 800);
             } else {
                 alert(`Erro ao deletar arquivo: ${result.error}`);
             }
@@ -392,8 +433,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         fileBrowser.innerHTML = '';
-        
-        // Adicionar indicador de modo
+          // Adicionar indicador de modo
         const modeIndicator = document.createElement('div');
         modeIndicator.className = `mb-6 p-3 rounded-lg text-center ${isOnlineMode ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`;
         modeIndicator.innerHTML = `
@@ -402,6 +442,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             ${isOnlineMode ? 'Conectado ao Supabase Storage' : 'Usando dados locais'}
         `;
         fileBrowser.appendChild(modeIndicator);
+
+        // Verificar se há dados para exibir
+        const folderCount = Object.keys(data).length;
+        
+        if (folderCount === 0) {
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'text-center py-12';
+            emptyMessage.innerHTML = `
+                <div class="bg-gray-50 rounded-lg p-8 max-w-md mx-auto">
+                    <i class="fas fa-folder-open fa-4x text-gray-400 mb-4"></i>
+                    <h3 class="text-xl font-semibold text-gray-700 mb-2">Nenhum bucket encontrado</h3>
+                    <p class="text-gray-500 mb-4">
+                        ${isOnlineMode 
+                            ? 'Não foram encontrados buckets de documentos no Supabase Storage. Crie buckets com sufixo "-docs" para começar.' 
+                            : 'Conecte-se à internet para acessar os documentos no Supabase Storage.'
+                        }
+                    </p>
+                    ${isOnlineMode 
+                        ? '<p class="text-sm text-blue-600">💡 Exemplo: "financeiro-docs", "rh-docs", "marketing-docs"</p>' 
+                        : ''
+                    }
+                </div>
+            `;
+            fileBrowser.appendChild(emptyMessage);
+            return;
+        }
 
         // Adicionar estatísticas se estiver online
         if (isOnlineMode && storageManager) {
@@ -464,16 +530,95 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         console.log('Cards rendered successfully!');
-    }
-
-    // Função principal para carregar e renderizar arquivos
+    }    // Função principal para carregar e renderizar arquivos
     async function loadAndRenderFiles() {
+        // Se o app já foi completamente carregado, não executar novamente
+        if (isAppFullyLoaded) {
+            console.log('📋 App já carregado, ignorando nova tentativa de carregamento');
+            return;
+        }
+        
+        // Prevenir múltiplas execuções simultâneas
+        if (isLoading) {
+            console.log('⚠️ Carregamento já em andamento, aguardando...');
+            return;
+        }
+        
+        isLoading = true;
+        console.log('🔄 Iniciando carregamento de arquivos...');
+        
         try {
             const fileData = await loadFileData();
             await renderBrowser(fileData);
+            isInitialized = true;
+            isAppFullyLoaded = true; // Marcar como completamente carregado
+            console.log('✅ Carregamento concluído - App totalmente inicializado');
         } catch (error) {
-            console.error('Erro ao carregar arquivos:', error);
-            renderBrowser(fallbackFileData);
+            console.error('❌ Erro ao carregar arquivos:', error);
+            await renderBrowser(fallbackFileData);
+            isAppFullyLoaded = true; // Marcar como carregado mesmo com erro para evitar loops
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    // Função leve para atualizar apenas o conteúdo do browser (sem recarregar tudo)
+    async function refreshBrowserContent() {
+        console.log('🔄 Atualizando conteúdo do browser...');
+        
+        try {
+            // Apenas recarregar os dados dos arquivos
+            const fileData = await loadFileData();
+            
+            // Atualizar apenas a parte do browser que mostra as pastas
+            const existingIndicators = document.querySelectorAll('[id*="loading-indicator"], [class*="bg-green-100"], [class*="bg-yellow-100"]');
+            existingIndicators.forEach(el => {
+                if (el.parentNode === fileBrowser) {
+                    // Manter indicadores existentes
+                    return;
+                }
+            });
+            
+            // Limpar apenas os cards de pastas, mantendo indicadores
+            const folderCards = fileBrowser.querySelectorAll('.bg-white.p-6.rounded-lg.shadow-md');
+            folderCards.forEach(card => card.remove());
+            
+            // Re-renderizar apenas os cards de pastas
+            for (const folder in fileData) {
+                const folderEl = document.createElement('div');
+                folderEl.className = 'bg-white p-6 rounded-lg shadow-md mb-6 flex flex-col items-center hover:shadow-lg transition-shadow duration-300';
+
+                const folderIcon = document.createElement('i');
+                folderIcon.className = getFolderIcon(folder);
+                folderIcon.style.fontSize = '3rem';
+                folderIcon.style.marginBottom = '0.75rem';
+
+                const folderTitle = document.createElement('h2');
+                folderTitle.className = 'text-xl font-bold text-gray-800 mb-2';
+                folderTitle.textContent = folder;
+
+                const fileCount = document.createElement('p');
+                fileCount.className = 'text-gray-600 text-sm mb-4';
+                fileCount.textContent = `${fileData[folder].length} arquivo(s)`;
+
+                const openButton = document.createElement('button');
+                openButton.className = 'bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full transition-all duration-300 flex items-center space-x-2';
+                openButton.innerHTML = '<i class="fas fa-folder-open"></i><span>Abrir Pasta</span>';
+                
+                openButton.addEventListener('click', () => {
+                    openModal(folder, fileData[folder]);
+                });
+
+                folderEl.appendChild(folderIcon);
+                folderEl.appendChild(folderTitle);
+                folderEl.appendChild(fileCount);
+                folderEl.appendChild(openButton);
+                fileBrowser.appendChild(folderEl);
+            }
+            
+            console.log('✅ Conteúdo atualizado com sucesso');
+        } catch (error) {
+            console.error('❌ Erro ao atualizar conteúdo:', error);
         }
     }
 

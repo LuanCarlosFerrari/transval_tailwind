@@ -18,30 +18,58 @@ if (typeof window.SupabaseStorageManager === 'undefined') {
             this.bucketDisplayNames = {};
         }        // Descobrir buckets dinamicamente
         async initializeBuckets() {
-            try {
-                console.log('🔍 Descobrindo buckets no Supabase Storage...');
+            try {                console.log('🔍 Descobrindo buckets no Supabase Storage...');
+                console.log('🔑 Cliente Supabase:', this.supabase ? 'OK' : 'NULO');
+                
+                // Resetar buckets descobertos
+                this.discoveredBuckets = {};
+                this.bucketDisplayNames = {};
+                
+                // Verificar se o cliente está pronto
+                if (!this.supabase) {
+                    console.error('❌ Cliente Supabase não inicializado');
+                    return;
+                }
+                
+                // Verificar se o usuário está autenticado
+                const { data: { user }, error: authError } = await this.supabase.auth.getUser();
+                if (authError) {
+                    console.error('❌ Erro de autenticação:', authError);
+                    return;
+                }
+                
+                if (!user) {
+                    console.log('⚠️ Usuário não autenticado, não é possível listar buckets');
+                    return;
+                }
+                
+                console.log('✅ Usuário autenticado:', user.email);
                 
                 // Listar buckets existentes
+                console.log('📡 Fazendo requisição para listar buckets...');
                 const { data: buckets, error: listError } = await this.supabase.storage.listBuckets();
                 
                 if (listError) {
-                    console.error('Erro ao listar buckets:', listError);
-                    console.log('📄 Modo fallback: usando configuração local');
-                    this.discoveredBuckets = this.knownBuckets;
-                    this._generateDisplayNames();
+                    console.error('❌ Erro ao listar buckets:', listError);
+                    console.error('🔍 Detalhes do erro:', JSON.stringify(listError, null, 2));
+                    return;
+                }                console.log('📁 Buckets disponíveis no Supabase:', buckets);
+                console.log('📊 Quantidade de buckets:', buckets ? buckets.length : 0);
+                console.log('🔍 Tipo de resposta:', typeof buckets);
+                
+                // Aceitar TODOS os buckets disponíveis (não apenas os com '-docs')
+                const availableBuckets = buckets ? buckets.filter(bucket => bucket.name && bucket.name.length > 0) : [];
+                
+                console.log('📋 Buckets encontrados:', availableBuckets.map(b => b.name));
+                
+                if (availableBuckets.length === 0) {
+                    console.log('⚠️ Nenhum bucket encontrado no Supabase Storage');
+                    console.log('💡 Verifique se você tem permissões de storage ou se os buckets existem');
                     return;
                 }
-
-                console.log('📁 Buckets encontrados:', buckets.map(b => b.name));
                 
-                // Filtrar apenas buckets que terminam com '-docs' ou são conhecidos
-                const relevantBuckets = buckets.filter(bucket => 
-                    bucket.name.endsWith('-docs') || 
-                    Object.values(this.knownBuckets).includes(bucket.name)
-                );
-                
-                // Mapear buckets descobertos
-                for (const bucket of relevantBuckets) {
+                // Mapear todos os buckets encontrados
+                for (const bucket of availableBuckets) {
                     const folderName = this._bucketToFolderName(bucket.name);
                     this.discoveredBuckets[folderName] = bucket.name;
                     console.log(`✅ Mapeado: ${folderName} → ${bucket.name}`);
@@ -49,17 +77,15 @@ if (typeof window.SupabaseStorageManager === 'undefined') {
                 
                 this._generateDisplayNames();
                 
-                console.log('🎯 Sistema dinâmico configurado com', Object.keys(this.discoveredBuckets).length, 'buckets');
+                console.log('🎯 Sistema dinâmico configurado com', Object.keys(this.discoveredBuckets).length, 'buckets reais');
                 
             } catch (error) {
-                console.error('Erro ao descobrir buckets:', error);
-                console.log('📄 Usando configuração fallback');
-                this.discoveredBuckets = this.knownBuckets;
-                this._generateDisplayNames();
+                console.error('❌ Erro ao descobrir buckets:', error);
+                console.log('⚠️ Sistema será carregado sem buckets');
+                this.discoveredBuckets = {};
+                this.bucketDisplayNames = {};
             }
-        }
-
-        // Converter nome do bucket para nome da pasta
+        }        // Converter nome do bucket para nome da pasta
         _bucketToFolderName(bucketName) {
             // Remover sufixo '-docs' se existir
             const baseName = bucketName.replace(/-docs$/, '');
@@ -77,13 +103,14 @@ if (typeof window.SupabaseStorageManager === 'undefined') {
                 'compras': 'compras',
                 'ti': 'ti',
                 'qualidade': 'qualidade',
-                'logistica': 'logistica'
+                'logistica': 'logistica',
+                'teste': 'teste',
+                'teste2': 'teste2'
             };
             
+            // Se não está no mapa, usar o nome base limpo
             return nameMap[baseName] || baseName;
-        }
-
-        // Gerar nomes de exibição amigáveis
+        }        // Gerar nomes de exibição amigáveis
         _generateDisplayNames() {
             const displayMap = {
                 'diretoria': 'Diretoria',
@@ -96,7 +123,9 @@ if (typeof window.SupabaseStorageManager === 'undefined') {
                 'compras': 'Compras',
                 'ti': 'Tecnologia da Informação',
                 'qualidade': 'Qualidade',
-                'logistica': 'Logística'
+                'logistica': 'Logística',
+                'teste': 'Teste',
+                'teste2': 'Teste 2'
             };
             
             for (const folderName of Object.keys(this.discoveredBuckets)) {
