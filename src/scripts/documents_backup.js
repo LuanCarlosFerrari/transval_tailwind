@@ -1,17 +1,12 @@
-﻿document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 [INIT] DOMContentLoaded disparado - iniciando script documents.js');
-    console.log('🔍 [INIT] Verificando se script já foi carregado...');
-
+document.addEventListener('DOMContentLoaded', async () => {
     // Proteção contra múltiplas execuções
     if (window.documentsScriptLoaded) {
-        console.log('📋 [PROTECTION] Script de documentos já foi carregado, ignorando execução duplicada');
-        console.log('🛑 [PROTECTION] RETORNANDO - execução bloqueada');
+        console.log('📋 Script de documentos já foi carregado, ignorando execução duplicada');
         return;
     }
     window.documentsScriptLoaded = true;
-    console.log('✅ [INIT] Primeira execução confirmada - marcando como carregado');
-
-    console.log('📝 [INIT] Dashboard script loaded successfully!');
+    
+    console.log('Dashboard script loaded successfully!');
 
     const fileBrowser = document.getElementById('file-browser');
     const folderModal = document.getElementById('folder-modal');
@@ -87,15 +82,13 @@
         ],
         'Jurídico': [
             { name: 'contratos.pdf', type: 'file' },
-            { name: 'licencas.docx', type: 'file' },]
+            { name: 'licencas.docx', type: 'file' },
+        ]
     };    // Carregar dados dos arquivos dinamicamente
     async function loadFileData() {
-        // Verificar se o sistema já foi finalizado
-        if (window.documentsAppFinished) {
-            console.log('🛑 Sistema finalizado, não carregando mais dados');
-            return {};
-        }
-
+        if (isOnlineMode && storageManager) {
+            console.log('📁 Carregando arquivos do Supabase Storage dinamicamente...');    // Carregar dados dos arquivos dinamicamente
+    async function loadFileData() {
         if (isOnlineMode && storageManager) {
             console.log('📁 Carregando arquivos do Supabase Storage dinamicamente...');
 
@@ -103,10 +96,10 @@
             if (!isInitialized && initAttempts < maxInitAttempts) {
                 initAttempts++;
                 console.log(`🔧 Inicializando descoberta de buckets (tentativa ${initAttempts}/${maxInitAttempts})...`);
-
+                
                 try {
                     await storageManager.initializeBuckets();
-
+                    
                     // Verificar se encontrou buckets
                     const discoveredBuckets = storageManager.getDiscoveredBuckets();
                     if (Object.keys(discoveredBuckets).length > 0) {
@@ -562,71 +555,38 @@
         console.log('Cards rendered successfully!');
     }    // Função principal para carregar e renderizar arquivos
     async function loadAndRenderFiles() {
-        console.log('🔄 [MAIN] loadAndRenderFiles() chamada');
-        console.log('🔍 [MAIN] Verificando estado do sistema...');
-        console.log(`📊 [STATE] documentsAppFinished: ${window.documentsAppFinished || 'undefined'}`);
-        console.log(`📊 [STATE] isAppFullyLoaded: ${isAppFullyLoaded}`);
-        console.log(`📊 [STATE] isLoading: ${isLoading}`);
-
-        // Verificar se o sistema já foi finalizado
-        if (window.documentsAppFinished) {
-            console.log('🛑 [PROTECTION] Sistema já finalizado, ignorando nova tentativa de carregamento');
-            console.log('🛑 [PROTECTION] RETORNANDO - execução bloqueada por finalização');
-            return;
-        }
-
         // Se o app já foi completamente carregado, não executar novamente
         if (isAppFullyLoaded) {
-            console.log('📋 [PROTECTION] App já carregado, ignorando nova tentativa de carregamento');
-            console.log('📋 [PROTECTION] RETORNANDO - execução bloqueada por app carregado');
+            console.log('📋 App já carregado, ignorando nova tentativa de carregamento');
             return;
         }
 
         // Prevenir múltiplas execuções simultâneas
         if (isLoading) {
-            console.log('⚠️ [PROTECTION] Carregamento já em andamento, aguardando...');
-            console.log('⚠️ [PROTECTION] RETORNANDO - execução bloqueada por carregamento ativo');
+            console.log('⚠️ Carregamento já em andamento, aguardando...');
             return;
         }
 
         isLoading = true;
-        console.log('🔄 [MAIN] Iniciando carregamento de arquivos...');
-        console.log('🔄 [MAIN] Marcando isLoading = true');
+        console.log('🔄 Iniciando carregamento de arquivos...');
 
         try {
-            console.log('📁 [MAIN] Chamando loadFileData()...');
             const fileData = await loadFileData();
-            console.log('🎨 [MAIN] Chamando renderBrowser()...');
             await renderBrowser(fileData);
-
-            console.log('✅ [SUCCESS] Marcando sistema como inicializado');
             isInitialized = true;
             isAppFullyLoaded = true; // Marcar como completamente carregado
-            console.log('✅ [SUCCESS] Carregamento concluído - App totalmente inicializado');
-
-            // PARAR COMPLETAMENTE - não permitir mais execuções
-            console.log('🛑 [FINALIZE] Marcando sistema como finalizado...');
-            window.documentsAppFinished = true;
-            console.log('🛑 Sistema finalizado - não haverá mais atualizações automáticas');
+            console.log('✅ Carregamento concluído - App totalmente inicializado');
         } catch (error) {
             console.error('❌ Erro ao carregar arquivos:', error);
             await renderBrowser(fallbackFileData);
             isAppFullyLoaded = true; // Marcar como carregado mesmo com erro para evitar loops
-
-            // PARAR COMPLETAMENTE mesmo com erro
-            window.documentsAppFinished = true;
-            console.log('🛑 Sistema finalizado com erro - não haverá mais atualizações automáticas');
         } finally {
             isLoading = false;
         }
-    }    // Função leve para atualizar apenas o conteúdo do browser (sem recarregar tudo)
-    async function refreshBrowserContent() {
-        // Verificar se o sistema já foi finalizado
-        if (window.documentsAppFinished) {
-            console.log('🛑 Sistema finalizado, não atualizando mais conteúdo');
-            return;
-        }
+    }
 
+    // Função leve para atualizar apenas o conteúdo do browser (sem recarregar tudo)
+    async function refreshBrowserContent() {
         console.log('🔄 Atualizando conteúdo do browser...');
 
         try {
@@ -677,10 +637,9 @@
                 folderEl.appendChild(fileCount);
                 folderEl.appendChild(openButton);
                 fileBrowser.appendChild(folderEl);
-            } console.log('✅ Conteúdo atualizado com sucesso');
-            console.log('Conteudo atualizado com sucesso');
+            }            console.log('✅ Conteúdo atualizado com sucesso');
         } catch (error) {
-            console.error('Erro ao atualizar conteudo:', error);
+            console.error('❌ Erro ao atualizar conteúdo:', error);
         }
     }
 
@@ -689,8 +648,6 @@
         if (e.target === folderModal) {
             closeModal();
         }
-    });
-
-    // Inicializar a aplicacao
+    });    // Inicializar a aplicação
     loadAndRenderFiles();
 });

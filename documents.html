@@ -186,18 +186,30 @@
         </div>
     </div>
 
-    <script>
-        // Verificar autenticação ao carregar a página
+    <script>        // Verificar autenticação ao carregar a página
         document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🔐 [HTML] DOMContentLoaded disparado no documents.html');
+
+            // Verificar se já foi processado para evitar múltiplas execuções
+            if (window.documentsHtmlProcessed) {
+                console.log('🔐 [HTML] Já foi processado, ignorando nova execução');
+                return;
+            }
+            window.documentsHtmlProcessed = true;
+            console.log('🔐 [HTML] Primeira execução, prosseguindo...');
+
             // Aguardar AuthManager estar pronto
+            console.log('🔐 [HTML] Aguardando AuthManager...');
             while (!window.AuthManager || !window.AuthManager.isInitialized) {
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
+            console.log('🔐 [HTML] AuthManager pronto!');
+
             // Verificar se o usuário tem acesso
             const hasAccess = await window.AuthManager.checkDocumentAccess();
 
             if (hasAccess) {
-                console.log('Usuário autenticado, carregando documentos...');
+                console.log('🔐 [HTML] Usuário autenticado, carregando documentos...');
                 // Mostrar informações do usuário no header
                 const currentUser = window.AuthManager.getCurrentUser();
                 if (currentUser && currentUser.email) {

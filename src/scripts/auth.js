@@ -55,17 +55,24 @@ class AuthManager {
             this.currentUser = null;
         }
     } setupAuthListener() {
+        console.log('🔐 [AUTH] Configurando listener de autenticação...');
         window.SupabaseAuth.onAuthStateChange((event, session) => {
-            console.log('Estado de autenticação mudou:', event);
+            console.log('🔐 [AUTH] Estado de autenticação mudou:', event);
+            console.log('🔐 [AUTH] Sessão:', session ? 'presente' : 'null');
+            console.log('🔐 [AUTH] Página atual:', window.location.pathname);
 
             if (event === 'SIGNED_IN') {
+                console.log('🔐 [AUTH] Evento SIGNED_IN processando...');
                 this.currentUser = session.user;
                 // Reset welcome flag para novos logins
                 sessionStorage.removeItem('transval_welcome_shown');
                 this.onSignIn(session.user);
             } else if (event === 'SIGNED_OUT') {
+                console.log('🔐 [AUTH] Evento SIGNED_OUT processando...');
                 this.currentUser = null;
                 this.onSignOut();
+            } else {
+                console.log('🔐 [AUTH] Evento ignorado:', event);
             }
         });
     }
@@ -113,7 +120,15 @@ class AuthManager {
     getCurrentUser() {
         return this.currentUser;
     } onSignIn(user) {
-        console.log('Usuário logado:', user.email);
+        console.log('🔐 [AUTH] Usuário logado:', user.email);
+
+        // Verificar se já estamos na página de documentos para evitar redirecionamento desnecessário
+        if (window.location.pathname.includes('documents.html')) {
+            console.log('🔐 [AUTH] Já na página de documentos, evitando redirecionamento');
+            return;
+        }
+
+        console.log('🔐 [AUTH] Redirecionando para documents.html...');
         // Limpar flag de boas-vindas para que apareça na próxima vez que acessar documents.html
         sessionStorage.removeItem('transval_welcome_shown');
         // Redirecionar para a página de documentos com parâmetro indicando login recente

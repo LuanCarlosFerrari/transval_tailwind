@@ -18,7 +18,7 @@ if (typeof window.SupabaseConfig === 'undefined') {
                 if (typeof window !== 'undefined' && !window.supabase) {
                     await this.loadSupabaseScript();
                 }            // Criar cliente Supabase
-                this.supabase = window.supabase.createClient(this.SUPABASE_URL, this.SUPABASE_ANON_KEY);                console.log('Supabase inicializado com sucesso');
+                this.supabase = window.supabase.createClient(this.SUPABASE_URL, this.SUPABASE_ANON_KEY); console.log('Supabase inicializado com sucesso');
 
                 // Inicializar Storage Manager se estiver disponível (sem auto-inicialização para evitar conflitos)
                 setTimeout(() => {
