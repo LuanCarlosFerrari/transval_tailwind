@@ -49,16 +49,10 @@ if (typeof window.SupabaseStorageManager === 'undefined') {
                 console.log('🔍 Tipo de resposta:', typeof buckets);
 
                 // Aceitar TODOS os buckets disponíveis (não apenas os com '-docs')
-                const availableBuckets = buckets ? buckets.filter(bucket => bucket.name && bucket.name.length > 0) : [];
-
-                console.log('📋 Buckets encontrados:', availableBuckets.map(b => b.name));
+                const availableBuckets = buckets ? buckets.filter(bucket => bucket.name && bucket.name.length > 0) : []; console.log('📋 Buckets encontrados:', availableBuckets.map(b => b.name));
                 if (availableBuckets.length === 0) {
                     console.log('⚠️ Nenhum bucket encontrado no Supabase Storage');
                     console.log('💡 Verifique se você tem permissões de storage ou se os buckets existem');
-
-                    // Tentar método alternativo para descobrir buckets
-                    console.log('🔄 Tentando método alternativo de descoberta...');
-                    await this._tryAlternativeBucketDiscovery();
                     return;
                 }
 
@@ -337,93 +331,6 @@ if (typeof window.SupabaseStorageManager === 'undefined') {
             } catch (error) {
                 console.error('Erro ao obter estatísticas:', error);
                 return {};
-            }
-        }        // Método alternativo para tentar descobrir buckets
-        async _tryAlternativeBucketDiscovery() {
-            console.log('🔍 [ALT] Tentando descobrir buckets por método alternativo...');
-
-            // Lista RESTRITA apenas dos buckets que você realmente tem
-            const possibleBucketNames = [
-                'teste', 'teste2'
-                // Removendo 'documents', 'files', 'uploads' que não existem no seu Supabase
-            ];
-
-            console.log('🔍 [ALT] Testando apenas buckets conhecidos:', possibleBucketNames);
-            const foundBuckets = [];
-
-            for (const bucketName of possibleBucketNames) {
-                try {
-                    console.log(`🧪 [ALT] Testando bucket: ${bucketName}`);
-
-                    // Tentar listar arquivos do bucket para verificar se existe
-                    const { data, error } = await this.supabase.storage
-                        .from(bucketName)
-                        .list('', { limit: 1 });
-
-                    if (!error && data !== null) {
-                        console.log(`✅ [ALT] Bucket confirmado: ${bucketName}`);
-                        foundBuckets.push({ name: bucketName });
-                    } else {
-                        console.log(`❌ [ALT] Bucket ${bucketName} não existe:`, error?.message || 'dados nulos');
-                    }
-                } catch (err) {
-                    console.log(`❌ Erro ao testar bucket ${bucketName}:`, err.message);
-                }
-            }
-
-            if (foundBuckets.length > 0) {
-                console.log(`🎯 Método alternativo encontrou ${foundBuckets.length} bucket(s):`, foundBuckets.map(b => b.name));
-
-                // Mapear buckets encontrados
-                for (const bucket of foundBuckets) {
-                    const folderName = this._bucketToFolderName(bucket.name);
-                    this.discoveredBuckets[folderName] = bucket.name;
-                    console.log(`✅ Mapeado via método alternativo: ${folderName} → ${bucket.name}`);
-                }
-
-                this._generateDisplayNames();
-                console.log('🎯 Sistema configurado via método alternativo com', Object.keys(this.discoveredBuckets).length, 'buckets');
-            } else {
-                console.log('❌ Método alternativo também não encontrou buckets');
-
-                // Mostrar diagnóstico detalhado
-                await this._showDetailedDiagnostics();
-            }
-        }
-
-        // Mostrar diagnósticos detalhados para ajudar na resolução
-        async _showDetailedDiagnostics() {
-            console.log('🔍 === DIAGNÓSTICO DETALHADO ===');
-
-            try {
-                // Testar se consegue acessar informações básicas do usuário
-                const { data: { user }, error: userError } = await this.supabase.auth.getUser();
-                console.log('👤 Usuário:', user ? user.email : 'Não encontrado');
-                console.log('🔑 Token disponível:', user ? 'Sim' : 'Não');
-
-                // Testar se consegue fazer uma chamada básica ao storage
-                try {
-                    const { data, error } = await this.supabase.storage.getBucket('teste');
-                    console.log('🪣 Teste getBucket:', error ? `Erro: ${error.message}` : 'Sucesso');
-                } catch (err) {
-                    console.log('🪣 Teste getBucket: Falhou -', err.message);
-                }
-
-                // Verificar permissões
-                console.log('⚠️ POSSÍVEIS CAUSAS:');
-                console.log('1. RLS (Row Level Security) bloqueando acesso aos buckets');
-                console.log('2. API Key sem permissões de storage');
-                console.log('3. Buckets não existem realmente no projeto');
-                console.log('4. Configuração de políticas de storage incorreta');
-                console.log('');
-                console.log('💡 SOLUÇÕES:');
-                console.log('1. Verificar se os buckets existem no painel do Supabase');
-                console.log('2. Configurar políticas de storage para permitir acesso');
-                console.log('3. Usar service_role key em vez de anon key (apenas para desenvolvimento)');
-                console.log('4. Verificar configurações de RLS na tabela buckets');
-
-            } catch (err) {
-                console.error('❌ Erro no diagnóstico:', err);
             }
         }
     }
