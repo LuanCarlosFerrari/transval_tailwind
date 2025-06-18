@@ -61,10 +61,10 @@
         }
     } catch (error) {
         console.log('Modo offline: usando dados locais');
-    }
-
-    // Dados de fallback (modo offline ou quando Supabase não está disponível)
-    const fallbackFileData = {
+    }    // Dados de fallback (APENAS para modo offline)
+    // ⚠️ IMPORTANTE: Estes dados NÃO devem ser usados em modo online
+    // Em modo online, apenas buckets que existem no Supabase devem ser renderizados
+    const fallbackFileData = isOnlineMode ? {} : {
         'Diretoria': [
             { name: 'planejamento.pdf', type: 'file' },
             { name: 'resultados.docx', type: 'file' },
@@ -87,17 +87,19 @@
         ],
         'Jurídico': [
             { name: 'contratos.pdf', type: 'file' },
-            { name: 'licencas.docx', type: 'file' },]
-    };    // Carregar dados dos arquivos dinamicamente
+            { name: 'licencas.docx', type: 'file' },
+        ]
+    };// Carregar dados dos arquivos dinamicamente
     async function loadFileData() {
         // Verificar se o sistema já foi finalizado
         if (window.documentsAppFinished) {
             console.log('🛑 Sistema finalizado, não carregando mais dados');
             return {};
-        }
-
-        if (isOnlineMode && storageManager) {
+        } if (isOnlineMode && storageManager) {
             console.log('📁 Carregando arquivos do Supabase Storage dinamicamente...');
+            console.log('⚠️ [CRITICAL] MODO ONLINE: Apenas buckets que existem no Supabase devem ser renderizados');
+            console.log('⚠️ [CRITICAL] Não devem aparecer: Documents, Files, Uploads ou outros buckets fictícios');
+            console.log('⚠️ [CRITICAL] Apenas buckets reais do seu projeto Supabase devem ser mostrados');
 
             // Inicializar buckets apenas uma vez, ou se explicitamente solicitado
             if (!isInitialized && initAttempts < maxInitAttempts) {
@@ -132,31 +134,36 @@
             // Obter buckets descobertos dinamicamente (apenas os que existem no Supabase)
             const discoveredBuckets = storageManager.getDiscoveredBuckets();
 
-            console.log('🔍 Buckets descobertos:', Object.keys(discoveredBuckets));
-
-            // Se não encontrou nenhum bucket que realmente existe, retornar vazio
+            console.log('🔍 Buckets descobertos:', Object.keys(discoveredBuckets));            // Se não encontrou nenhum bucket que realmente existe, retornar vazio
             if (Object.keys(discoveredBuckets).length === 0) {
                 console.log('⚠️ Nenhum bucket válido encontrado no Supabase Storage');
+                console.log('🔍 [SAFETY_CHECK] Retornando dados vazios para garantir que nenhum bucket fictício seja renderizado');
                 return {};
-            }
+            } for (const folderName of Object.keys(discoveredBuckets)) {
+                console.log(`🔍 [PROCESSING] Processando bucket: ${folderName} → ${discoveredBuckets[folderName]}`);
 
-            for (const folderName of Object.keys(discoveredBuckets)) {
                 try {
                     const files = await storageManager.listFiles(folderName);
                     const displayName = storageManager.getDisplayName(folderName);
                     onlineData[displayName] = files;
                     console.log(`✅ Pasta "${displayName}" carregada com ${files.length} arquivo(s)`);
+                    console.log(`✅ [VERIFIED] Bucket real confirmado: ${displayName}`);
                 } catch (error) {
                     console.error(`❌ Erro ao carregar pasta ${folderName}:`, error);
+                    console.log(`⚠️ [SKIPPED] Pulando bucket com erro: ${folderName}`);
                     // Não adicionar pasta que deu erro
                 }
-            }
-
-            console.log('✅ Sistema carregado com buckets existentes:', Object.keys(onlineData));
+            } console.log('✅ Sistema carregado com buckets existentes:', Object.keys(onlineData));
+            console.log('🔍 [DATA_SOURCE] Dados vindos de: SUPABASE STORAGE (modo online)');
+            console.log('🔍 [DATA_SOURCE] Total de buckets descobertos:', Object.keys(onlineData).length);
             return onlineData;
         } else {
-            console.log('📄 Usando dados locais (modo offline)');
-            return fallbackFileData;
+            console.log('📄 [OFFLINE] Modo offline detectado');
+            console.log('📄 [OFFLINE] Retornando dados vazios (não usar fallback para evitar buckets falsos)');
+            console.log('🔍 [DATA_SOURCE] Dados vindos de: VAZIO (modo offline sem fallback)');
+            console.log('🔍 [DATA_SOURCE] Total de buckets retornados: 0');
+            // Retornar vazio em vez de fallback para evitar mostrar buckets que não existem
+            return {};
         }
     }
 
@@ -453,9 +460,27 @@
     function closeModal() {
         folderModal.classList.add('hidden');
         folderModal.classList.remove('flex');
-    }
+    } async function renderBrowser(data) {
+        console.log('🎨 [RENDER] === INÍCIO DE RENDERIZAÇÃO ===');
+        console.log('🎨 [RENDER] Dados recebidos para renderização:', data);
+        console.log('🎨 [RENDER] Tipo de dados:', typeof data);
+        console.log('🎨 [RENDER] Modo atual:', isOnlineMode ? 'ONLINE' : 'OFFLINE');
+        console.log('🎨 [RENDER] Chaves dos dados:', Object.keys(data));
+        console.log('🎨 [RENDER] Total de itens a renderizar:', Object.keys(data).length);
 
-    async function renderBrowser(data) {
+        // VERIFICAÇÃO DE SEGURANÇA: Em modo online, verificar se não há buckets fictícios
+        if (isOnlineMode) {
+            const suspiciousBuckets = Object.keys(data).filter(key =>
+                ['Documents', 'Files', 'Uploads', 'documents', 'files', 'uploads'].includes(key)
+            );
+            if (suspiciousBuckets.length > 0) {
+                console.error('🚨 [SECURITY] BUCKETS FICTÍCIOS DETECTADOS:', suspiciousBuckets);
+                console.error('🚨 [SECURITY] Estes buckets não deveriam existir em modo online!');
+                console.error('🚨 [SECURITY] Forçando dados vazios para evitar renderização de buckets falsos');
+                data = {}; // Forçar dados vazios se buckets fictícios forem detectados
+            }
+        }
+
         // Remove o indicador de carregamento
         const loadingIndicator = document.getElementById('loading-indicator');
         if (loadingIndicator) {
@@ -525,9 +550,11 @@
             } catch (error) {
                 console.error('Erro ao carregar estatísticas:', error);
             }
-        }
+        } for (const folder in data) {
+            console.log(`🎨 [RENDER] Renderizando card para: "${folder}"`);
+            console.log(`🎨 [RENDER] Fonte dos dados: ${isOnlineMode ? 'Supabase Storage' : 'Fallback Local'}`);
+            console.log(`🎨 [RENDER] Número de arquivos: ${data[folder].length}`);
 
-        for (const folder in data) {
             const folderEl = document.createElement('div');
             folderEl.className = 'bg-white p-6 rounded-lg shadow-md mb-6 flex flex-col items-center hover:shadow-lg transition-shadow duration-300';
 
@@ -559,8 +586,10 @@
             fileBrowser.appendChild(folderEl);
         }
 
-        console.log('Cards rendered successfully!');
-    }    // Função principal para carregar e renderizar arquivos
+        console.log('🎨 [RENDER] === FIM DE RENDERIZAÇÃO ===');
+        console.log('🎨 [RENDER] Cards renderizados com sucesso!');
+        console.log('🎨 [RENDER] Total de cards criados:', Object.keys(data).length);
+    }// Função principal para carregar e renderizar arquivos
     async function loadAndRenderFiles() {
         console.log('🔄 [MAIN] loadAndRenderFiles() chamada');
         console.log('🔍 [MAIN] Verificando estado do sistema...');
@@ -591,11 +620,14 @@
 
         isLoading = true;
         console.log('🔄 [MAIN] Iniciando carregamento de arquivos...');
-        console.log('🔄 [MAIN] Marcando isLoading = true');
-
-        try {
+        console.log('🔄 [MAIN] Marcando isLoading = true'); try {
             console.log('📁 [MAIN] Chamando loadFileData()...');
             const fileData = await loadFileData();
+            console.log('📁 [MAIN] loadFileData() retornou:', fileData);
+            console.log('📁 [MAIN] Tipo dos dados retornados:', typeof fileData);
+            console.log('📁 [MAIN] Chaves dos dados:', Object.keys(fileData || {}));
+            console.log('📁 [MAIN] É objeto vazio?', Object.keys(fileData || {}).length === 0);
+
             console.log('🎨 [MAIN] Chamando renderBrowser()...');
             await renderBrowser(fileData);
 
@@ -610,7 +642,18 @@
             console.log('🛑 Sistema finalizado - não haverá mais atualizações automáticas');
         } catch (error) {
             console.error('❌ Erro ao carregar arquivos:', error);
-            await renderBrowser(fallbackFileData);
+            console.log('⚠️ [ERROR] Sistema em erro - renderizando interface vazia em modo online');
+
+            // Em modo online, sempre renderizar vazio em caso de erro (não usar fallback)
+            // Em modo offline, usar fallback apenas se necessário
+            if (isOnlineMode) {
+                await renderBrowser({}); // Interface vazia em modo online
+                console.log('🔍 [ERROR] Modo online: renderizando interface vazia devido ao erro');
+            } else {
+                await renderBrowser(fallbackFileData); // Fallback apenas em modo offline
+                console.log('📄 [ERROR] Modo offline: usando dados de fallback devido ao erro');
+            }
+
             isAppFullyLoaded = true; // Marcar como carregado mesmo com erro para evitar loops
 
             // PARAR COMPLETAMENTE mesmo com erro

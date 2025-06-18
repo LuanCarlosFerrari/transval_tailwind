@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Buckets - Transval</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .result {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .error {
+            background: #ffe6e6;
+            color: #d00;
+        }
+
+        .success {
+            background: #e6ffe6;
+            color: #080;
+        }
+
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔍 Debug de Buckets do Supabase</h1>
+    <p>Este teste vai listar APENAS os buckets que realmente existem no seu projeto Supabase.</p>
+
+    <div id="results"></div>
+
+    <script src="src/config/supabase.js"></script>
+    <script src="src/config/storage.js"></script>
+    <script src="src/scripts/auth.js"></script>
+
+    <script>
+        async function debugBuckets() {
+            const results = document.getElementById('results');
+
+            function addResult(type, title, content) {
+                const div = document.createElement('div');
+                div.className = `result ${type}`;
+                div.innerHTML = `<h3>${title}</h3><pre>${content}</pre>`;
+                results.appendChild(div);
+            }
+
+            try {
+                // Aguardar AuthManager
+                addResult('warning', '⏳ Aguardando AuthManager...', 'Inicializando sistema de autenticação...');
+                while (!window.AuthManager || !window.AuthManager.isInitialized) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                addResult('success', '✅ AuthManager Pronto', 'Sistema de autenticação inicializado');
+
+                // Verificar autenticação
+                const hasAccess = await window.AuthManager.checkDocumentAccess();
+                if (!hasAccess) {
+                    addResult('error', '🔐 Usuário não autenticado', 'Faça login primeiro em index.html');
+                    return;
+                }
+
+                const user = window.AuthManager.getCurrentUser();
+                addResult('success', '👤 Usuário Autenticado', `Email: ${user?.email || 'N/A'}`);
+
+                // Aguardar StorageManager
+                while (!window.SupabaseAuth.getStorageManager()) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+                const storageManager = window.SupabaseAuth.getStorageManager();
+                addResult('success', '📦 StorageManager Pronto', 'Sistema de storage inicializado');
+
+                // Testar listagem de buckets diretamente
+                addResult('warning', '🔍 Testando Supabase.storage.listBuckets()...', 'Fazendo chamada direta ao Supabase...');
+
+                const supabase = storageManager.supabase;
+                const { data: buckets, error } = await supabase.storage.listBuckets();
+
+                if (error) {
+                    addResult('error', '❌ Erro ao listar buckets', JSON.stringify(error, null, 2));
+                    return;
+                }
+
+                addResult('success', '📁 Buckets Encontrados',
+                    `Total: ${buckets ? buckets.length : 0}\n\n` +
+                    `Lista completa:\n${JSON.stringify(buckets, null, 2)}`
+                );
+
+                // Testar discovery do StorageManager
+                addResult('warning', '🔄 Testando inicialização de buckets...', 'Executando storageManager.initializeBuckets()...');
+
+                await storageManager.initializeBuckets();
+                const discoveredBuckets = storageManager.getDiscoveredBuckets();
+
+                addResult('success', '🎯 Buckets Descobertos pelo Sistema',
+                    `Total descoberto: ${Object.keys(discoveredBuckets).length}\n\n` +
+                    `Mapeamento:\n${JSON.stringify(discoveredBuckets, null, 2)}`
+                );
+
+                // Testar cada bucket individualmente
+                for (const [folderName, bucketName] of Object.entries(discoveredBuckets)) {
+                    try {
+                        const files = await storageManager.listFiles(folderName);
+                        const displayName = storageManager.getDisplayName(folderName);
+
+                        addResult('success', `📂 Bucket: ${displayName}`,
+                            `Nome interno: ${folderName}\n` +
+                            `Bucket Supabase: ${bucketName}\n` +
+                            `Arquivos: ${files.length}\n` +
+                            `Lista de arquivos:\n${JSON.stringify(files.map(f => f.name), null, 2)}`
+                        );
+                    } catch (err) {
+                        addResult('error', `❌ Erro no bucket: ${folderName}`, err.message);
+                    }
+                }
+
+                addResult('success', '🎉 Teste Concluído',
+                    'Estes são TODOS os buckets que realmente existem no seu Supabase.\n' +
+                    'Se aparecerem outros buckets na interface principal, há um bug.'
+                );
+
+            } catch (error) {
+                addResult('error', '💥 Erro Geral', error.message + '\n\n' + error.stack);
+            }
+        }
+
+        // Executar quando a página carregar
+        document.addEventListener('DOMContentLoaded', debugBuckets);
+    </script>
+</body>
+
+</html>

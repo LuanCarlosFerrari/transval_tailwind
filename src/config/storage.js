@@ -338,35 +338,33 @@ if (typeof window.SupabaseStorageManager === 'undefined') {
                 console.error('Erro ao obter estatísticas:', error);
                 return {};
             }
-        }
-
-        // Método alternativo para tentar descobrir buckets
+        }        // Método alternativo para tentar descobrir buckets
         async _tryAlternativeBucketDiscovery() {
-            console.log('🔍 Tentando descobrir buckets por método alternativo...');
+            console.log('🔍 [ALT] Tentando descobrir buckets por método alternativo...');
 
-            // Lista de buckets comuns para testar
-            const commonBucketNames = [
-                'teste', 'teste2', 'test', 'documents', 'files', 'uploads',
-                'diretoria-docs', 'financeiro-docs', 'marketing-docs', 'rh-docs',
-                'operacional-docs', 'juridico-docs', 'vendas-docs', 'compras-docs'
+            // Lista RESTRITA apenas dos buckets que você realmente tem
+            const possibleBucketNames = [
+                'teste', 'teste2'
+                // Removendo 'documents', 'files', 'uploads' que não existem no seu Supabase
             ];
 
+            console.log('🔍 [ALT] Testando apenas buckets conhecidos:', possibleBucketNames);
             const foundBuckets = [];
 
-            for (const bucketName of commonBucketNames) {
+            for (const bucketName of possibleBucketNames) {
                 try {
-                    console.log(`🧪 Testando bucket: ${bucketName}`);
+                    console.log(`🧪 [ALT] Testando bucket: ${bucketName}`);
 
                     // Tentar listar arquivos do bucket para verificar se existe
                     const { data, error } = await this.supabase.storage
                         .from(bucketName)
                         .list('', { limit: 1 });
 
-                    if (!error) {
-                        console.log(`✅ Bucket encontrado: ${bucketName}`);
+                    if (!error && data !== null) {
+                        console.log(`✅ [ALT] Bucket confirmado: ${bucketName}`);
                         foundBuckets.push({ name: bucketName });
                     } else {
-                        console.log(`❌ Bucket ${bucketName} não existe ou sem acesso:`, error.message);
+                        console.log(`❌ [ALT] Bucket ${bucketName} não existe:`, error?.message || 'dados nulos');
                     }
                 } catch (err) {
                     console.log(`❌ Erro ao testar bucket ${bucketName}:`, err.message);
