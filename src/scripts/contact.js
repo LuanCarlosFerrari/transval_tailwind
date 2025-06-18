@@ -1,4 +1,5 @@
-export const contactContent = {
+// Sistema de contato - sem exports para compatibilidade com navegador
+const contactContent = {
     title: "Vamos acelerar sua logística?",
     description: "Juntos, encontramos a rota ideal para o seu sucesso. Fale com nossos especialistas!!",
     buttonTextOpen: "Solicitar Cotação",
@@ -33,7 +34,8 @@ export const contactContent = {
     `
 };
 
-export function initContact() {
+// Função para inicializar o sistema de contato
+function initContact() {
     const titleEl = document.getElementById('contact-title');
     const descriptionEl = document.getElementById('contact-description');
     const buttonEl = document.getElementById('contact-button');
@@ -55,7 +57,9 @@ export function initContact() {
         } else {
             formContainerEl.innerHTML = '';
             formContainerEl.classList.add('hidden');
-        }
-        buttonEl.textContent = isHidden ? contactContent.buttonTextClose : contactContent.buttonTextOpen;
+        }        buttonEl.textContent = isHidden ? contactContent.buttonTextClose : contactContent.buttonTextOpen;
     });
 }
+
+// Inicializar quando o DOM estiver carregado
+document.addEventListener('DOMContentLoaded', initContact);

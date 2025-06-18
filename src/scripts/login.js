@@ -16,16 +16,15 @@ function createLoginModal() {
                         </svg>
                     </button>
                 </div>
-                <form id="login-form" class="space-y-6">
-                    <div>
-                        <label for="username" class="block text-gray-700 text-sm font-semibold mb-2">Usuário</label>
+                <form id="login-form" class="space-y-6">                    <div>
+                        <label for="email" class="block text-gray-700 text-sm font-semibold mb-2">Email</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <i class="fas fa-user text-gray-400"></i>
+                                <i class="fas fa-envelope text-gray-400"></i>
                             </div>
-                            <input type="text" id="username" name="username"
+                            <input type="email" id="email" name="email" required
                                 class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
-                                placeholder="Digite seu usuário">
+                                placeholder="Digite seu email">
                         </div>
                     </div>
                     <div>
@@ -33,20 +32,34 @@ function createLoginModal() {
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i class="fas fa-lock text-gray-400"></i>
-                            </div>
-                            <input type="password" id="password" name="password"
+                            </div>                            <input type="password" id="password" name="password" required
                                 class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
                                 placeholder="Digite sua senha">
                         </div>
-                    </div>
-                    <button type="submit"
-                        class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
-                        <i class="fas fa-sign-in-alt mr-2"></i>
-                        Entrar
+                    </div>                    <button type="submit" id="login-submit-btn"
+                        class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span class="login-text">
+                            <i class="fas fa-sign-in-alt mr-2"></i>
+                            Entrar
+                        </span>
+                        <span class="loading-text hidden">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>
+                            Entrando...
+                        </span>
                     </button>
                 </form>
                 <div class="mt-6 text-center">
                     <p class="text-xs text-gray-500">Acesso exclusivo para funcionários autorizados</p>
+                    <div class="mt-2 flex items-center justify-center space-x-4">
+                        <div class="flex items-center text-xs text-gray-400">
+                            <i class="fas fa-shield-alt mr-1"></i>
+                            <span>Conexão segura</span>
+                        </div>
+                        <div class="flex items-center text-xs text-gray-400">
+                            <i class="fas fa-lock mr-1"></i>
+                            <span>Dados protegidos</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -68,6 +81,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const openModal = () => {
         loginModal.classList.remove('hidden');
         loginModal.classList.add('flex');
+
+        // Carregar último email usado
+        const lastEmail = localStorage.getItem('transval_last_email');
+        if (lastEmail) {
+            const emailInput = document.getElementById('email');
+            if (emailInput) {
+                emailInput.value = lastEmail;
+                // Focar no campo de senha se email já estiver preenchido
+                const passwordInput = document.getElementById('password');
+                if (passwordInput) {
+                    setTimeout(() => passwordInput.focus(), 100);
+                }
+            }
+        } else {
+            // Focar no campo de email se estiver vazio
+            const emailInput = document.getElementById('email');
+            if (emailInput) {
+                setTimeout(() => emailInput.focus(), 100);
+            }
+        }
     };
 
     const closeModal = () => {
@@ -94,13 +127,58 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target === loginModal) {
             closeModal();
         }
-    });
-
-    // Handle login form submission
-    loginForm.addEventListener('submit', (e) => {
+    });    // Handle login form submission
+    loginForm.addEventListener('submit', async (e) => {
         e.preventDefault(); // Impede o envio padrão do formulário
-        console.log('Redirecionando para documents.html');
-        // Adicione aqui a lógica de validação de usuário e senha, se necessário
-        window.location.href = 'documents.html'; // Redireciona para a página de documentos
+
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const submitBtn = document.getElementById('login-submit-btn');
+        const loginText = submitBtn.querySelector('.login-text');
+        const loadingText = submitBtn.querySelector('.loading-text');
+
+        // Validação básica
+        if (!email || !password) {
+            window.AuthManager.showMessage('Por favor, preencha todos os campos.', 'error');
+            return;
+        }
+
+        // Validar formato do email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            window.AuthManager.showMessage('Por favor, insira um email válido.', 'error');
+            return;
+        }
+
+        // Mostrar loading
+        submitBtn.disabled = true;
+        loginText.classList.add('hidden');
+        loadingText.classList.remove('hidden');
+
+        try {
+            // Aguardar AuthManager estar pronto
+            while (!window.AuthManager.isInitialized) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            // Tentar fazer login
+            const success = await window.AuthManager.login(email, password);
+
+            if (success) {
+                // Login bem-sucedido - salvar email para próximo login
+                localStorage.setItem('transval_last_email', email);
+
+                // Login bem-sucedido - o AuthManager cuidará do redirecionamento
+                closeModal();
+            }
+        } catch (error) {
+            console.error('Erro no login:', error);
+            window.AuthManager.showMessage('Erro interno. Tente novamente.', 'error');
+        } finally {
+            // Restaurar botão
+            submitBtn.disabled = false;
+            loginText.classList.remove('hidden');
+            loadingText.classList.add('hidden');
+        }
     });
 });

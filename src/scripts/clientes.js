@@ -54,7 +54,8 @@ const clientLogos = [
     'ype.png'
 ];
 
-export function generateClientCards() {
+// Função para gerar os cartões de clientes
+function generateClientCards() {
     const marqueeContent = document.getElementById('marquee-content');
     if (!marqueeContent) {
         console.error('Marquee content element not found!');
@@ -76,9 +77,10 @@ export function generateClientCards() {
 
     clientLogos.forEach(logo => {
         marqueeContent.appendChild(createCard(logo));
-    });
-
-    clientLogos.forEach(logo => {
+    });    clientLogos.forEach(logo => {
         marqueeContent.appendChild(createCard(logo));
     });
 }
+
+// Inicializar quando o DOM estiver carregado
+document.addEventListener('DOMContentLoaded', generateClientCards);

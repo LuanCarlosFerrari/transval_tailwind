@@ -31,7 +31,8 @@ const baseUrl = window.location.hostname === 'luancarlosferrari.github.io'
     ? '/transval-intranet-New'
     : '';
 
-export const aboutContent = {
+// Conteúdo sobre a empresa
+const aboutContent = {
     _eventsData: [
         { year: "1987", title: "Fundação", details: "Criação da empresa familiar por Onevaldo e Valmir, em Rinópolis – SP.", bgColor: "bg-white", textColor: "text-blue-950", yearColor: "text-blue-600", dotColor: "bg-blue-600", contentAbove: true, detailsColor: "text-blue-950", icon: "fas fa-flag", iconColor: "text-blue-950" },
         { year: "2000", title: "Unidade Rondonópolis", details: "Abertura da unidade em Rondonópolis – MT para apoiar nossa operação no Centro-Oeste.", bgColor: "bg-blue-200", textColor: "text-blue-950", yearColor: "text-blue-700", dotColor: "bg-blue-400", titleColor: "text-blue-950", contentAbove: false, detailsColor: "text-blue-950", icon: "fas fa-map-marker-alt", iconColor: "text-blue-950" },
@@ -167,7 +168,8 @@ export const aboutContent = {
     }
 };
 
-export function initPresentation() {
+// Função para inicializar a apresentação
+function initPresentation() {
     const timelineContainer = document.getElementById('timeline-container');
     if (timelineContainer) {
         timelineContainer.innerHTML = aboutContent.timelineHtml;
@@ -339,11 +341,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         handleCarouselLayout();
-        window.addEventListener('resize', handleCarouselLayout);
-    }
+        window.addEventListener('resize', handleCarouselLayout);    }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', setupEventListeners);
     } else {
         setupEventListeners();
     }
 });
+
+// Inicializar quando o DOM estiver carregado
+document.addEventListener('DOMContentLoaded', initPresentation);

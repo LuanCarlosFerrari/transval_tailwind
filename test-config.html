@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Configuração - Supabase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-8">
+    <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold mb-4 text-center">Teste de Configuração</h1>
+
+        <div id="status" class="mb-4 p-3 rounded-lg">
+            <p class="font-semibold">Status: <span id="status-text">Verificando...</span></p>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Email de teste:</label>
+                <input type="email" id="test-email" class="w-full p-2 border rounded" placeholder="teste@exemplo.com">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Senha de teste:</label>
+                <input type="password" id="test-password" class="w-full p-2 border rounded" placeholder="123456">
+            </div>
+
+            <button id="test-login" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
+                Testar Login
+            </button>
+
+            <button id="test-logout" class="w-full bg-red-500 text-white p-2 rounded hover:bg-red-600" disabled>
+                Testar Logout
+            </button>
+        </div>
+
+        <div id="logs" class="mt-6 p-3 bg-gray-50 rounded-lg max-h-40 overflow-y-auto">
+            <h3 class="font-semibold mb-2">Logs:</h3>
+            <div id="log-content" class="text-sm space-y-1"></div>
+        </div>
+
+        <div class="mt-4 text-center">
+            <a href="index.html" class="text-blue-500 hover:underline">← Voltar para o site</a>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="src/config/supabase.js"></script>
+    <script src="src/scripts/auth.js"></script>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const statusText = document.getElementById('status-text');
+        const logContent = document.getElementById('log-content');
+        const testLoginBtn = document.getElementById('test-login');
+        const testLogoutBtn = document.getElementById('test-logout');
+
+        function addLog(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.className = `text-${type === 'error' ? 'red' : type === 'success' ? 'green' : 'gray'}-600`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContent.appendChild(logEntry);
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        function updateStatus(message, isError = false) {
+            statusText.textContent = message;
+            statusEl.className = `mb-4 p-3 rounded-lg ${isError ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`;
+        }
+
+        async function checkConfiguration() {
+            addLog('Iniciando verificação de configuração...');
+
+            try {
+                // Verificar se o Supabase está carregado
+                if (!window.SupabaseAuth) {
+                    throw new Error('SupabaseAuth não encontrado');
+                }
+                addLog('✓ SupabaseAuth carregado');
+
+                // Aguardar inicialização
+                let attempts = 0;
+                while (!window.SupabaseAuth.supabase && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (!window.SupabaseAuth.supabase) {
+                    throw new Error('Supabase não inicializou. Verifique suas credenciais.');
+                }
+                addLog('✓ Cliente Supabase inicializado');
+
+                // Verificar se o AuthManager está carregado
+                if (!window.AuthManager) {
+                    throw new Error('AuthManager não encontrado');
+                }
+                addLog('✓ AuthManager carregado');
+
+                // Aguardar AuthManager estar pronto
+                attempts = 0;
+                while (!window.AuthManager.isInitialized && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (!window.AuthManager.isInitialized) {
+                    throw new Error('AuthManager não inicializou');
+                }
+                addLog('✓ AuthManager inicializado');
+
+                // Verificar sessão atual
+                const currentUser = window.AuthManager.getCurrentUser();
+                if (currentUser) {
+                    addLog(`✓ Usuário logado: ${currentUser.email}`);
+                    testLogoutBtn.disabled = false;
+                } else {
+                    addLog('ℹ Nenhum usuário logado');
+                }
+
+                updateStatus('Configuração OK!');
+                addLog('✓ Configuração verificada com sucesso!');
+
+            } catch (error) {
+                console.error('Erro na configuração:', error);
+                updateStatus(`Erro: ${error.message}`, true);
+                addLog(`✗ Erro: ${error.message}`, 'error');
+
+                // Sugestões de solução
+                if (error.message.includes('credenciais')) {
+                    addLog('💡 Dica: Verifique se você configurou SUPABASE_URL e SUPABASE_ANON_KEY em src/config/supabase.js', 'info');
+                }
+            }
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('test-email').value;
+            const password = document.getElementById('test-password').value;
+
+            if (!email || !password) {
+                addLog('✗ Preencha email e senha para testar', 'error');
+                return;
+            }
+
+            addLog(`Tentando login com: ${email}`);
+            testLoginBtn.disabled = true;
+            testLoginBtn.textContent = 'Testando...';
+
+            try {
+                const success = await window.AuthManager.login(email, password);
+                if (success) {
+                    addLog('✓ Login realizado com sucesso!', 'success');
+                    testLogoutBtn.disabled = false;
+                } else {
+                    addLog('✗ Login falhou', 'error');
+                }
+            } catch (error) {
+                addLog(`✗ Erro no login: ${error.message}`, 'error');
+            } finally {
+                testLoginBtn.disabled = false;
+                testLoginBtn.textContent = 'Testar Login';
+            }
+        }
+
+        async function testLogout() {
+            addLog('Fazendo logout...');
+            testLogoutBtn.disabled = true;
+            testLogoutBtn.textContent = 'Saindo...';
+
+            try {
+                const success = await window.AuthManager.logout();
+                if (success) {
+                    addLog('✓ Logout realizado com sucesso!', 'success');
+                } else {
+                    addLog('✗ Logout falhou', 'error');
+                }
+            } catch (error) {
+                addLog(`✗ Erro no logout: ${error.message}`, 'error');
+            } finally {
+                testLogoutBtn.disabled = true;
+                testLogoutBtn.textContent = 'Testar Logout';
+            }
+        }
+
+        // Event listeners
+        testLoginBtn.addEventListener('click', testLogin);
+        testLogoutBtn.addEventListener('click', testLogout);
+
+        // Inicializar verificação
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(checkConfiguration, 500);
+        });
+    </script>
+</body>
+
+</html>

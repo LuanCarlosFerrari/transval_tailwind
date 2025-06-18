@@ -20,7 +20,8 @@ injectStyles(`
     }
 `, 'leaflet-styles');
 
-export function initFiliaisMap() {
+// Função para inicializar o mapa de filiais
+function initFiliaisMap() {
     const mapContainer = document.getElementById('map');
     if (!mapContainer || mapContainer._leaflet_id) return;
 
