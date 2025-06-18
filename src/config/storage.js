@@ -1,8 +1,10 @@
 // Módulo de Storage para Supabase
 if (typeof window.SupabaseStorageManager === 'undefined') {
-    class SupabaseStorageManager {
-        constructor(supabaseClient) {
-            this.supabase = supabaseClient; this.buckets = {
+    class SupabaseStorageManager {        constructor(supabaseClient) {
+            this.supabase = supabaseClient;
+            
+            // Mapeamento de buckets conhecidos (como fallback)
+            this.knownBuckets = {
                 'diretoria': 'diretoria-docs',
                 'financeiro': 'financeiro-docs',
                 'marketing': 'marketing-docs',
@@ -10,58 +12,113 @@ if (typeof window.SupabaseStorageManager === 'undefined') {
                 'operacional': 'operacional-docs',
                 'jurídico': 'juridico-docs'
             };
-        }    // Verificar buckets existentes (sem tentar criar)
+            
+            // Buckets descobertos dinamicamente
+            this.discoveredBuckets = {};
+            this.bucketDisplayNames = {};
+        }        // Descobrir buckets dinamicamente
         async initializeBuckets() {
             try {
-                console.log('Verificando buckets do Supabase Storage...');
-
+                console.log('🔍 Descobrindo buckets no Supabase Storage...');
+                
                 // Listar buckets existentes
                 const { data: buckets, error: listError } = await this.supabase.storage.listBuckets();
-
+                
                 if (listError) {
                     console.error('Erro ao listar buckets:', listError);
-                    console.log('Modo fallback: buckets serão criados manualmente no dashboard');
+                    console.log('📄 Modo fallback: usando configuração local');
+                    this.discoveredBuckets = this.knownBuckets;
+                    this._generateDisplayNames();
                     return;
                 }
 
-                console.log('Buckets encontrados:', buckets.map(b => b.name));
-
-                // Verificar quais buckets existem
-                for (const [folderName, bucketName] of Object.entries(this.buckets)) {
-                    const bucketExists = buckets.some(bucket => bucket.name === bucketName);
-
-                    if (bucketExists) {
-                        console.log(`✅ Bucket ${bucketName} encontrado`);
-                    } else {
-                        console.warn(`⚠️ Bucket ${bucketName} não encontrado - será criado manualmente no dashboard`);
-                    }
+                console.log('📁 Buckets encontrados:', buckets.map(b => b.name));
+                
+                // Filtrar apenas buckets que terminam com '-docs' ou são conhecidos
+                const relevantBuckets = buckets.filter(bucket => 
+                    bucket.name.endsWith('-docs') || 
+                    Object.values(this.knownBuckets).includes(bucket.name)
+                );
+                
+                // Mapear buckets descobertos
+                for (const bucket of relevantBuckets) {
+                    const folderName = this._bucketToFolderName(bucket.name);
+                    this.discoveredBuckets[folderName] = bucket.name;
+                    console.log(`✅ Mapeado: ${folderName} → ${bucket.name}`);
                 }
-
-                console.log('📋 Para criar buckets em falta, acesse o Supabase Dashboard > Storage');
+                
+                this._generateDisplayNames();
+                
+                console.log('🎯 Sistema dinâmico configurado com', Object.keys(this.discoveredBuckets).length, 'buckets');
+                
             } catch (error) {
-                console.error('Erro ao verificar buckets:', error);
-                console.log('Sistema funcionará em modo fallback');
+                console.error('Erro ao descobrir buckets:', error);
+                console.log('📄 Usando configuração fallback');
+                this.discoveredBuckets = this.knownBuckets;
+                this._generateDisplayNames();
             }
-        }    // Listar arquivos de uma pasta/bucket
+        }
+
+        // Converter nome do bucket para nome da pasta
+        _bucketToFolderName(bucketName) {
+            // Remover sufixo '-docs' se existir
+            const baseName = bucketName.replace(/-docs$/, '');
+            
+            // Mapear nomes conhecidos
+            const nameMap = {
+                'diretoria': 'diretoria',
+                'financeiro': 'financeiro', 
+                'marketing': 'marketing',
+                'rh': 'rh',
+                'operacional': 'operacional',
+                'juridico': 'jurídico',
+                'recursos-humanos': 'rh',
+                'vendas': 'vendas',
+                'compras': 'compras',
+                'ti': 'ti',
+                'qualidade': 'qualidade',
+                'logistica': 'logistica'
+            };
+            
+            return nameMap[baseName] || baseName;
+        }
+
+        // Gerar nomes de exibição amigáveis
+        _generateDisplayNames() {
+            const displayMap = {
+                'diretoria': 'Diretoria',
+                'financeiro': 'Financeiro',
+                'marketing': 'Marketing', 
+                'rh': 'Recursos Humanos',
+                'operacional': 'Operacional',
+                'juridico': 'Jurídico',
+                'vendas': 'Vendas',
+                'compras': 'Compras',
+                'ti': 'Tecnologia da Informação',
+                'qualidade': 'Qualidade',
+                'logistica': 'Logística'
+            };
+            
+            for (const folderName of Object.keys(this.discoveredBuckets)) {
+                this.bucketDisplayNames[folderName] = displayMap[folderName] || 
+                    folderName.charAt(0).toUpperCase() + folderName.slice(1);
+            }
+        }
+
+        // Obter todos os buckets descobertos
+        getDiscoveredBuckets() {
+            return this.discoveredBuckets;
+        }
+
+        // Obter nome de exibição de uma pasta
+        getDisplayName(folderName) {
+            return this.bucketDisplayNames[folderName] || folderName;
+        }        // Listar arquivos de uma pasta/bucket
         async listFiles(folderName) {
             try {
-                const bucketName = this.buckets[folderName.toLowerCase()];
+                const bucketName = this.discoveredBuckets[folderName.toLowerCase()];
                 if (!bucketName) {
                     console.warn(`⚠️ Bucket não encontrado para a pasta: ${folderName}`);
-                    return [];
-                }
-
-                // Verificar se o bucket existe antes de tentar listar
-                const { data: buckets, error: listBucketsError } = await this.supabase.storage.listBuckets();
-
-                if (listBucketsError) {
-                    console.error('Erro ao verificar buckets:', listBucketsError);
-                    return [];
-                }
-
-                const bucketExists = buckets.some(bucket => bucket.name === bucketName);
-                if (!bucketExists) {
-                    console.warn(`⚠️ Bucket ${bucketName} não existe. Crie-o no Dashboard do Supabase.`);
                     return [];
                 }
 
@@ -89,12 +146,10 @@ if (typeof window.SupabaseStorageManager === 'undefined') {
                 console.error('Erro ao listar arquivos:', error);
                 return [];
             }
-        }
-
-        // Upload de arquivo
+        }        // Upload de arquivo
         async uploadFile(folderName, file, fileName = null) {
             try {
-                const bucketName = this.buckets[folderName.toLowerCase()];
+                const bucketName = this.discoveredBuckets[folderName.toLowerCase()];
                 if (!bucketName) {
                     throw new Error(`Bucket não encontrado para a pasta: ${folderName}`);
                 }
@@ -137,12 +192,10 @@ if (typeof window.SupabaseStorageManager === 'undefined') {
                     error: error.message
                 };
             }
-        }
-
-        // Download de arquivo
+        }        // Download de arquivo
         async downloadFile(folderName, fileName) {
             try {
-                const bucketName = this.buckets[folderName.toLowerCase()];
+                const bucketName = this.discoveredBuckets[folderName.toLowerCase()];
                 if (!bucketName) {
                     throw new Error(`Bucket não encontrado para a pasta: ${folderName}`);
                 }
@@ -174,12 +227,10 @@ if (typeof window.SupabaseStorageManager === 'undefined') {
                     error: error.message
                 };
             }
-        }
-
-        // Obter URL pública de um arquivo (se o bucket for público)
+        }        // Obter URL pública de um arquivo (se o bucket for público)
         async getPublicUrl(folderName, fileName) {
             try {
-                const bucketName = this.buckets[folderName.toLowerCase()];
+                const bucketName = this.discoveredBuckets[folderName.toLowerCase()];
                 if (!bucketName) {
                     throw new Error(`Bucket não encontrado para a pasta: ${folderName}`);
                 }
@@ -193,12 +244,10 @@ if (typeof window.SupabaseStorageManager === 'undefined') {
                 console.error('Erro ao obter URL pública:', error);
                 return null;
             }
-        }
-
-        // Deletar arquivo
+        }        // Deletar arquivo
         async deleteFile(folderName, fileName) {
             try {
-                const bucketName = this.buckets[folderName.toLowerCase()];
+                const bucketName = this.discoveredBuckets[folderName.toLowerCase()];
                 if (!bucketName) {
                     throw new Error(`Bucket não encontrado para a pasta: ${folderName}`);
                 }
@@ -244,24 +293,23 @@ if (typeof window.SupabaseStorageManager === 'undefined') {
                 console.error('Erro ao verificar permissões:', error);
                 return { canRead: false, canWrite: false, canDelete: false };
             }
-        }
-
-        // Obter estatísticas de uso do storage
+        }        // Obter estatísticas de uso do storage
         async getStorageStats() {
             try {
                 const stats = {};
-
-                for (const [folderName, bucketName] of Object.entries(this.buckets)) {
+                
+                for (const [folderName, bucketName] of Object.entries(this.discoveredBuckets)) {
                     const files = await this.listFiles(folderName);
                     const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
-
+                    
                     stats[folderName] = {
                         fileCount: files.length,
                         totalSize: totalSize,
-                        totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2)
+                        totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2),
+                        displayName: this.getDisplayName(folderName)
                     };
                 }
-
+                
                 return stats;
             } catch (error) {
                 console.error('Erro ao obter estatísticas:', error);

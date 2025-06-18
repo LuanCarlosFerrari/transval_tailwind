@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             { name: 'campanha-natal.jpg', type: 'file' },
             { name: 'novo-logo.png', type: 'file' },
         ],
-        'RH': [
+        'Recursos Humanos': [
             { name: 'ferias.pdf', type: 'file' },
             { name: 'vagas.docx', type: 'file' },
         ],
@@ -67,25 +67,38 @@ document.addEventListener('DOMContentLoaded', async () => {
             { name: 'contratos.pdf', type: 'file' },
             { name: 'licencas.docx', type: 'file' },
         ]
-    };    // Carregar dados dos arquivos
+    };
+
+    // Carregar dados dos arquivos dinamicamente
     async function loadFileData() {
         if (isOnlineMode && storageManager) {
-            console.log('Carregando arquivos do Supabase Storage...');
+            console.log('📁 Carregando arquivos do Supabase Storage dinamicamente...');
             const onlineData = {};
-
-            for (const folderName of Object.keys(fallbackFileData)) {
+            
+            // Obter buckets descobertos dinamicamente
+            const discoveredBuckets = storageManager.getDiscoveredBuckets();
+            
+            for (const folderName of Object.keys(discoveredBuckets)) {
                 try {
                     const files = await storageManager.listFiles(folderName);
-                    onlineData[folderName] = files;
+                    const displayName = storageManager.getDisplayName(folderName);
+                    onlineData[displayName] = files;
                 } catch (error) {
                     console.error(`Erro ao carregar pasta ${folderName}:`, error);
-                    onlineData[folderName] = fallbackFileData[folderName] || [];
+                    onlineData[storageManager.getDisplayName(folderName)] = [];
                 }
             }
-
+            
+            // Se não encontrou nenhum bucket, usar fallback
+            if (Object.keys(onlineData).length === 0) {
+                console.log('📄 Nenhum bucket encontrado, usando dados fallback');
+                return fallbackFileData;
+            }
+            
+            console.log('✅ Dados carregados dinamicamente:', Object.keys(onlineData));
             return onlineData;
         } else {
-            console.log('Usando dados locais (modo offline)');
+            console.log('📄 Usando dados locais (modo offline)');
             return fallbackFileData;
         }
     }
@@ -115,30 +128,83 @@ document.addEventListener('DOMContentLoaded', async () => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    async function openModal(folderName, files) {
-        modalTitle.textContent = folderName;
-        modalContent.innerHTML = ''; // Limpa o conteúdo anterior
+    // Obter ícone apropriado para cada tipo de pasta
+    function getFolderIcon(folderName) {
+        const iconMap = {
+            'diretoria': 'fas fa-users-cog text-purple-500',
+            'financeiro': 'fas fa-chart-line text-green-500',
+            'marketing': 'fas fa-bullhorn text-orange-500',
+            'rh': 'fas fa-user-friends text-blue-500',
+            'recursos humanos': 'fas fa-user-friends text-blue-500',
+            'operacional': 'fas fa-cogs text-gray-600',
+            'juridico': 'fas fa-balance-scale text-indigo-500',
+            'jurídico': 'fas fa-balance-scale text-indigo-500',
+            'vendas': 'fas fa-handshake text-yellow-500',
+            'compras': 'fas fa-shopping-cart text-pink-500',
+            'ti': 'fas fa-laptop-code text-cyan-500',
+            'tecnologia da informação': 'fas fa-laptop-code text-cyan-500',
+            'qualidade': 'fas fa-certificate text-emerald-500',
+            'logistica': 'fas fa-truck text-red-500',
+            'default': 'fas fa-folder text-blue-500'
+        };
+        
+        const key = folderName.toLowerCase();
+        return iconMap[key] || iconMap['default'];
+    }
+
+    // Converter nome de exibição para nome interno da pasta
+    function getFolderNameFromDisplay(displayName) {
+        if (!isOnlineMode || !storageManager) return null;
+        
+        const discoveredBuckets = storageManager.getDiscoveredBuckets();
+        
+        for (const [internalName, bucketName] of Object.entries(discoveredBuckets)) {
+            const display = storageManager.getDisplayName(internalName);
+            if (display === displayName) {
+                return internalName;
+            }
+        }
+        
+        // Fallback para compatibilidade
+        const nameMap = {
+            'Diretoria': 'diretoria',
+            'Financeiro': 'financeiro',
+            'Marketing': 'marketing',
+            'Recursos Humanos': 'rh',
+            'Operacional': 'operacional',
+            'Jurídico': 'juridico'
+        };
+        
+        return nameMap[displayName] || displayName.toLowerCase();
+    }
+
+    async function openModal(displayName, files) {
+        modalTitle.textContent = displayName;
+        modalContent.innerHTML = '';
+
+        // Converter nome de exibição para nome interno
+        const folderName = getFolderNameFromDisplay(displayName);
 
         // Adicionar botão de upload se estiver online
-        if (isOnlineMode && storageManager) {
+        if (isOnlineMode && storageManager && folderName) {
             const uploadSection = document.createElement('div');
             uploadSection.className = 'mb-6 p-4 bg-blue-50 rounded-lg border-2 border-dashed border-blue-300';
-
+            
             const uploadTitle = document.createElement('h3');
             uploadTitle.className = 'text-lg font-semibold text-blue-700 mb-2';
             uploadTitle.textContent = 'Upload de Arquivos';
-
+            
             const uploadInput = document.createElement('input');
             uploadInput.type = 'file';
             uploadInput.multiple = true;
             uploadInput.className = 'mb-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100';
             uploadInput.accept = '.pdf,.docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.gif,.txt';
-
+            
             const uploadBtn = document.createElement('button');
             uploadBtn.className = 'bg-blue-500 hover:bg-blue-700 text-white px-4 py-2 rounded-lg';
             uploadBtn.textContent = 'Enviar Arquivos';
             uploadBtn.onclick = () => handleFileUpload(folderName, uploadInput.files);
-
+            
             uploadSection.appendChild(uploadTitle);
             uploadSection.appendChild(uploadInput);
             uploadSection.appendChild(uploadBtn);
@@ -147,7 +213,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const fileListContainer = document.createElement('div');
         fileListContainer.className = 'space-y-3';
-
+        
         files.forEach(file => {
             const fileItem = document.createElement('div');
             fileItem.className = 'bg-white p-4 rounded-lg shadow-sm flex items-center justify-between hover:bg-blue-50 transition-colors duration-200 border border-gray-200';
@@ -160,11 +226,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const fileDetails = document.createElement('div');
             fileDetails.className = 'flex flex-col';
-
+            
             const fileName = document.createElement('span');
             fileName.className = 'text-gray-800 font-medium';
             fileName.textContent = file.name;
-
+            
             const fileMetadata = document.createElement('span');
             fileMetadata.className = 'text-gray-500 text-sm';
             let metadataText = '';
@@ -189,7 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             // Botão de deletar (apenas no modo online)
-            if (isOnlineMode && storageManager) {
+            if (isOnlineMode && storageManager && folderName) {
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'bg-red-500 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors duration-200';
                 deleteBtn.innerHTML = '<i class="fas fa-trash"></i><span>Deletar</span>';
@@ -204,7 +270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (metadataText) {
                 fileDetails.appendChild(fileMetadata);
             }
-
+            
             fileInfo.appendChild(icon);
             fileInfo.appendChild(fileDetails);
             actionButtons.appendChild(downloadBtn);
@@ -223,7 +289,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         modalContent.appendChild(fileListContainer);
         folderModal.classList.remove('hidden');
         folderModal.classList.add('flex');
-    }    // Funções para manipular arquivos
+    }
+
+    // Funções para manipular arquivos
     async function handleFileUpload(folderName, files) {
         if (!files || files.length === 0) {
             alert('Selecione pelo menos um arquivo para upload.');
@@ -231,11 +299,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const uploadResults = [];
-
+        
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             console.log(`Fazendo upload de ${file.name}...`);
-
+            
             try {
                 const result = await storageManager.uploadFile(folderName, file);
                 if (result.success) {
@@ -254,7 +322,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Mostrar resultados
         const successCount = uploadResults.filter(r => r.success).length;
         const failCount = uploadResults.length - successCount;
-
+        
         let message = `Upload concluído!\n`;
         message += `✅ ${successCount} arquivo(s) enviado(s) com sucesso\n`;
         if (failCount > 0) {
@@ -264,9 +332,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 message += `• ${r.file}: ${r.error}\n`;
             });
         }
-
+        
         alert(message);
-
+        
         // Recarregar a lista de arquivos
         if (successCount > 0) {
             closeModal();
@@ -298,7 +366,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (isOnlineMode && storageManager) {
             console.log(`Deletando ${file.name} do Supabase...`);
             const result = await storageManager.deleteFile(folderName, file.name);
-
+            
             if (result.success) {
                 alert(`Arquivo "${file.name}" deletado com sucesso!`);
                 closeModal();
@@ -324,7 +392,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         fileBrowser.innerHTML = '';
-
+        
         // Adicionar indicador de modo
         const modeIndicator = document.createElement('div');
         modeIndicator.className = `mb-6 p-3 rounded-lg text-center ${isOnlineMode ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`;
@@ -341,20 +409,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const stats = await storageManager.getStorageStats();
                 const statsContainer = document.createElement('div');
                 statsContainer.className = 'mb-6 bg-blue-50 p-4 rounded-lg';
-
+                
                 let statsHtml = '<h3 class="text-lg font-semibold text-blue-800 mb-2">📊 Estatísticas de Storage</h3>';
                 statsHtml += '<div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">';
-
+                
                 for (const [folder, stat] of Object.entries(stats)) {
                     statsHtml += `
                         <div class="bg-white p-2 rounded">
-                            <div class="font-medium text-blue-700">${folder}</div>
+                            <div class="font-medium text-blue-700">${stat.displayName || folder}</div>
                             <div class="text-gray-600">${stat.fileCount} arquivo(s)</div>
                             <div class="text-gray-500">${stat.totalSizeMB} MB</div>
                         </div>
                     `;
                 }
-
+                
                 statsHtml += '</div>';
                 statsContainer.innerHTML = statsHtml;
                 fileBrowser.appendChild(statsContainer);
@@ -368,7 +436,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             folderEl.className = 'bg-white p-6 rounded-lg shadow-md mb-6 flex flex-col items-center hover:shadow-lg transition-shadow duration-300';
 
             const folderIcon = document.createElement('i');
-            folderIcon.className = 'fas fa-folder text-blue-500 text-4xl mb-3';
+            folderIcon.className = getFolderIcon(folder);
+            folderIcon.style.fontSize = '3rem';
+            folderIcon.style.marginBottom = '0.75rem';
 
             const folderTitle = document.createElement('h2');
             folderTitle.className = 'text-xl font-bold text-gray-800 mb-2';
@@ -381,7 +451,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const openButton = document.createElement('button');
             openButton.className = 'bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full transition-all duration-300 flex items-center space-x-2';
             openButton.innerHTML = '<i class="fas fa-folder-open"></i><span>Abrir Pasta</span>';
-
+            
             openButton.addEventListener('click', () => {
                 openModal(folder, data[folder]);
             });
