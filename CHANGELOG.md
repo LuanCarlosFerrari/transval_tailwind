@@ -1,5 +1,87 @@
 # 📋 Changelog - Sistema Transval
 
+## 🆕 Versão 3.0.0 - Integração Supabase Storage (18/06/2025)
+
+### ✨ Novas Funcionalidades Principais:
+
+#### 📁 Sistema de Storage Integrado:
+- **Supabase Storage**: Integração completa com cloud storage
+- **Mapeamento Inteligente**: Pastas locais vinculadas a buckets na nuvem
+- **Modo Híbrido**: Funciona online (Supabase) e offline (dados locais)
+- **Upload Múltiplo**: Envio de vários arquivos simultaneamente
+- **Download Real**: Arquivos baixados diretamente do Supabase
+- **Exclusão Segura**: Deletar arquivos com confirmação dupla
+
+#### 🗂️ Organização por Departamentos:
+- **6 Pastas Principais**: Diretoria, Financeiro, Marketing, RH, Operacional, Jurídico
+- **Buckets Dedicados**: Cada pasta tem seu bucket próprio no Supabase
+- **Permissões Granulares**: Controle de acesso por pasta/usuário
+- **Metadados Completos**: Tamanho, data, tipo de arquivo visíveis
+
+#### 🎯 Interface Avançada:
+- **Indicador Online/Offline**: Badge visual do status de conexão
+- **Estatísticas de Storage**: Contagem de arquivos e uso de espaço por pasta
+- **Ícones por Tipo**: PDFs, Word, Excel, Imagens com ícones específicos
+- **Upload com Drag & Drop**: Interface intuitiva para envio de arquivos
+- **Progress Feedback**: Indicadores de progresso para uploads
+
+#### 🔧 Funcionalidades Técnicas:
+- **Criação Automática de Buckets**: Sistema configura storage automaticamente
+- **Validação de Arquivos**: Tipos e tamanhos permitidos (máx. 50MB)
+- **Políticas de Segurança**: RLS configurado para acesso autenticado
+- **Fallback Robusto**: Graceful degradation para modo offline
+- **Error Handling**: Tratamento completo de erros de rede/storage
+
+#### 📊 Monitoramento e Logs:
+- **Dashboard de Estatísticas**: Uso de storage por departamento
+- **Logs Detalhados**: Registro de uploads, downloads e exclusões
+- **Auditoria**: Rastreamento de atividades por usuário
+- **Métricas de Performance**: Monitoramento de uso e limites
+
+### 🛠️ Arquivos Criados/Modificados:
+
+#### 📄 Novos Arquivos:
+- `src/config/storage.js` - Manager do Supabase Storage
+- `STORAGE_SUPABASE.md` - Documentação completa do sistema
+- `supabase_storage_policies.sql` - Políticas de segurança SQL
+
+#### 🔄 Arquivos Modificados:
+- `src/config/supabase.js` - Integração com storage manager
+- `src/scripts/documents.js` - Interface híbrida online/offline
+- `documents.html` - Scripts de storage incluídos
+
+### 🚀 Como Usar:
+
+#### Para Usuários:
+1. **Login**: Entre no sistema normalmente
+2. **Navegação**: Acesse a página de documentos
+3. **Upload**: Clique "Abrir Pasta" → selecione arquivos → "Enviar"
+4. **Download**: Clique no botão download ao lado do arquivo
+5. **Gestão**: Delete arquivos com confirmação (modo online)
+
+#### Para Desenvolvedores:
+1. **Configuração**: Buckets criados automaticamente no primeiro acesso
+2. **Políticas**: Execute `supabase_storage_policies.sql` no dashboard
+3. **Customização**: Modifique mapeamentos em `storage.js`
+4. **Monitoramento**: Use `getStorageStats()` para métricas
+
+### 🛡️ Segurança Implementada:
+- ✅ Autenticação obrigatória para todas as operações
+- ✅ Buckets privados por padrão
+- ✅ Validação de tipos de arquivo no frontend e backend
+- ✅ Limite de tamanho por arquivo (50MB)
+- ✅ Row Level Security (RLS) no Supabase
+- ✅ Políticas de acesso configuráveis por departamento
+
+### 🌐 Compatibilidade:
+- ✅ Funcionamento offline com dados locais
+- ✅ Sincronização automática quando online
+- ✅ Suporte a todos os navegadores modernos
+- ✅ Interface responsiva (desktop e mobile)
+- ✅ Graceful degradation para conexões lentas
+
+---
+
 ## 🆕 Versão 2.0.0 - Sistema de Autenticação Completo (18/06/2025)
 
 ### ✨ Novas Funcionalidades:

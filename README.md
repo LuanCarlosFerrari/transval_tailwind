@@ -25,6 +25,14 @@ Este é um projeto de site para a Transval, uma empresa de logística. O site fo
 * **UX Avançada:** Interface moderna com feedback visual
 * **Segurança:** Verificação automática de sessão e logout por expiração
 
+### 📁 Sistema de Storage:
+* **Supabase Storage:** Integração com storage na nuvem
+* **Modo Híbrido:** Funciona online (Supabase) e offline (local)
+* **Upload Múltiplo:** Envio de vários arquivos simultaneamente
+* **Organização:** 6 departamentos (Diretoria, Financeiro, Marketing, RH, Operacional, Jurídico)
+* **Segurança:** Buckets privados com autenticação obrigatória
+* **Monitoramento:** Estatísticas de uso e logs detalhados
+
 ## Como Executar o Projeto
 
 ### 1. Configuração Básica:
@@ -36,6 +44,13 @@ Este é um projeto de site para a Transval, uma empresa de logística. O site fo
 2. Configure suas credenciais do Supabase
 3. Crie usuários no dashboard do Supabase
 4. Teste o sistema com `test-config.html`
+
+### 3. Configuração do Storage (Obrigatório para área de documentos):
+1. **Configure os Buckets**: Siga as instruções em `CRIACAO_BUCKETS.md`
+2. **Aplique Políticas**: Execute `supabase_storage_policies.sql` no SQL Editor
+3. **Teste o Sistema**: Acesse a página de documentos e verifique os logs
+
+⚠️ **IMPORTANTE**: Os buckets devem ser criados manualmente no Dashboard do Supabase antes de usar o sistema de documentos.
 
 ## 📁 Estrutura do Projeto
 

@@ -184,11 +184,7 @@
                 </div>
             </div>
         </div>
-    </div> <!-- Scripts do Supabase e Autenticação -->
-    <script src="src/config/supabase.js"></script>
-    <script src="src/scripts/auth.js"></script>
-    <script src="src/scripts/confirm-modal.js"></script>
-    <script src="src/scripts/documents.js"></script>
+    </div>
 
     <script>
         // Verificar autenticação ao carregar a página
@@ -308,8 +304,14 @@
         // Script do menu mobile (mantendo funcionalidade existente)
         document.getElementById('mobile-menu-btn').addEventListener('click', function () {
             document.getElementById('mobile-menu').classList.toggle('hidden');
-        });
-    </script>
+        });    </script>
+
+    <!-- Scripts do Supabase, Storage e Documentos (ordem importante) -->
+    <script src="src/config/supabase.js"></script>
+    <script src="src/config/storage.js"></script>
+    <script src="src/scripts/auth.js"></script>
+    <script src="src/scripts/confirm-modal.js"></script>
+    <script src="src/scripts/documents.js"></script>
 </body>
 
 </html>
